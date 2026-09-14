@@ -45,12 +45,20 @@ export class BridgeClient {
             message.request_headers.append('Content-Type', 'application/json');
 
         try {
-            const bytes = await this._session.send_and_read_async(
-                message,
-                GLib.PRIORITY_DEFAULT,
-                cancellable,
-                null
-            );
+            const bytes = await new Promise((resolve, reject) => {
+                this._session.send_and_read_async(
+                    message,
+                    GLib.PRIORITY_DEFAULT,
+                    cancellable,
+                    (session, result) => {
+                        try {
+                            resolve(session.send_and_read_finish(result));
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }
+                );
+            });
             const status = message.get_status();
             if (status < 200 || status >= 300)
                 throw new Error(`Bridge returned HTTP ${status}`);
