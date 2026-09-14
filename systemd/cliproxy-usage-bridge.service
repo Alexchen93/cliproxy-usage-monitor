@@ -1,0 +1,19 @@
+[Unit]
+Description=CLIProxyAPI local usage bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m cliproxy_usage_bridge.main --config %h/.config/cliproxy-usage-bridge/config.toml
+WorkingDirectory=%h/.local/share/cliproxy-usage-bridge
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=%h/.local/share/cliproxy-usage-bridge
+
+[Install]
+WantedBy=default.target

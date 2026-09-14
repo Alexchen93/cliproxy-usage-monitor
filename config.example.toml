@@ -1,0 +1,10 @@
+# Copy outside this repository, then chmod 0600 ~/.config/cliproxy-usage-bridge/config.toml
+# Use the Headscale/private address only; never a public tunnel hostname.
+remote_base_url = "http://100.64.0.3:8317"
+management_key = "REPLACE_WITH_MANAGEMENT_KEY"
+bind_host = "127.0.0.1"
+bind_port = 17831
+timeout_seconds = 8
+cache_ttl_seconds = 30
+stale_after_seconds = 300
+refresh_debounce_seconds = 10
