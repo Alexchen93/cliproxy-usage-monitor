@@ -1,5 +1,5 @@
 {
-  "uuid": "cliproxy-usage-monitor-v3@priveate.uk",
+  "uuid": "cliproxy-usage-monitor-v4@priveate.uk",
   "name": "CLIProxy Usage Monitor",
   "description": "Shows cached CLIProxy usage from a localhost bridge.",
   "shell-version": ["45", "46", "47"],

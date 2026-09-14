@@ -1,3 +1,61 @@
 .cliproxy-usage-info {
-  min-width: 260px;
+  min-width: 300px;
+}
+
+.cliproxy-account-card {
+  min-width: 360px;
+  padding: 8px 10px;
+}
+
+.cliproxy-account-heading {
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+.cliproxy-account-unavailable {
+  color: #e06c75;
+}
+
+.cliproxy-quota-row {
+  spacing: 8px;
+  margin: 3px 0;
+}
+
+.cliproxy-quota-label {
+  width: 48px;
+}
+
+.cliproxy-quota-percent {
+  width: 42px;
+  font-weight: 700;
+}
+
+.cliproxy-quota-track {
+  width: 160px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.cliproxy-quota-fill {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.cliproxy-quota-good {
+  background-color: #45c46b;
+}
+
+.cliproxy-quota-warning {
+  background-color: #e5b94f;
+}
+
+.cliproxy-quota-critical {
+  background-color: #df5b57;
+}
+
+.cliproxy-quota-reset {
+  margin: 0 0 5px 98px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.9em;
 }

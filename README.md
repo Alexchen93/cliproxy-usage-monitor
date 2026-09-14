@@ -41,6 +41,6 @@ gnome-extensions pack extension --force --out-dir=/tmp
 - Bridge runtime: `~/.local/share/cliproxy-usage-bridge`
 - Bridge config: `~/.config/cliproxy-usage-bridge/config.toml` (mode 0600)
 - User service: `~/.config/systemd/user/cliproxy-usage-bridge.service`
-- Extension: `~/.local/share/gnome-shell/extensions/cliproxy-usage-monitor-v3@priveate.uk`
+- Extension: `~/.local/share/gnome-shell/extensions/cliproxy-usage-monitor-v4@priveate.uk`
 
 The bridge config uses the private endpoint `http://100.64.0.3:8317`. Never commit a real management key.

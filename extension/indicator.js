@@ -131,44 +131,82 @@ class UsageIndicator extends PanelMenu.Button {
     _addProvider(provider) {
         this.menu.addMenuItem(this._infoItem(provider.name));
         if (provider.accounts.length > 0) {
-            for (const account of provider.accounts)
-                this._addAccount(account);
+            provider.accounts.forEach((account, index) => {
+                if (index > 0)
+                    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                this._addAccount(account, index + 1);
+            });
         } else {
-            this._addWindows(provider.windows, '  ');
+            this._addWindows(provider.windows);
             if (provider.usedPercent !== null && Object.keys(provider.windows).length === 0)
-                this.menu.addMenuItem(this._infoItem(`  Used  ${formatPercent(provider.usedPercent)}`));
+                this.menu.addMenuItem(this._infoItem(`Used  ${formatPercent(provider.usedPercent)}`));
         }
         if (provider.accountsTotal !== null) {
             const available = provider.accountsAvailable === null ? 'unknown' : provider.accountsAvailable;
-            this.menu.addMenuItem(this._infoItem(`  Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
+            this.menu.addMenuItem(this._infoItem(`Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
         }
     }
 
-    _addAccount(account) {
-        const name = typeof account?.display_name === 'string' ? account.display_name : 'Account';
-        this.menu.addMenuItem(this._infoItem(`  ${name}`));
+    _addAccount(account, index) {
+        const name = typeof account?.display_name === 'string' ? account.display_name : `Account ${index}`;
+        const card = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        card.add_style_class_name('cliproxy-account-card');
+        const content = new St.BoxLayout({vertical: true, x_expand: true});
+        const heading = new St.Label({text: `Account ${index} · ${name}`, style_class: 'cliproxy-account-heading'});
+        content.add_child(heading);
+
         if (account?.available === false) {
-            this.menu.addMenuItem(this._infoItem('    Quota unavailable'));
-            return;
+            content.add_child(new St.Label({text: 'Quota unavailable', style_class: 'cliproxy-account-unavailable'}));
+        } else {
+            const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
+            this._addWindows(windows, content);
+            if (Object.keys(windows).length === 0)
+                content.add_child(new St.Label({text: `Used  ${formatPercent(account?.summary_used_percent)}`, style_class: 'cliproxy-account-unavailable'}));
         }
-        const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
-        this._addWindows(windows, '    ');
-        if (Object.keys(windows).length === 0)
-            this.menu.addMenuItem(this._infoItem(`    Used  ${formatPercent(account?.summary_used_percent)}`));
+        card.add_child(content);
+        this.menu.addMenuItem(card);
     }
 
-    _addWindows(windows, indent) {
+    _addWindows(windows, container = null) {
         const windowLabels = {five_hour: '5h', weekly: 'Weekly'};
         for (const [key, label] of Object.entries(windowLabels)) {
             const window = windows[key];
             if (!window)
                 continue;
-            let text = `${indent}${label}  ${formatPercent(window.remaining_percent)} remaining`;
-            const reset = formatReset(window.reset_at);
-            if (reset)
-                text += ` · reset ${reset}`;
-            this.menu.addMenuItem(this._infoItem(text));
+            const row = this._quotaRow(label, window);
+            if (container)
+                container.add_child(row);
+            else {
+                const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+                item.add_child(row);
+                this.menu.addMenuItem(item);
+            }
         }
+    }
+
+    _quotaRow(label, window) {
+        const remaining = Math.max(0, Math.min(100, Number(window.remaining_percent) || 0));
+        const box = new St.BoxLayout({vertical: true, x_expand: true});
+        const row = new St.BoxLayout({style_class: 'cliproxy-quota-row', x_expand: true});
+        row.add_child(new St.Label({text: label, style_class: 'cliproxy-quota-label'}));
+        row.add_child(new St.Label({text: `${Math.round(remaining)}%`, style_class: 'cliproxy-quota-percent'}));
+
+        const track = new St.Widget({style_class: 'cliproxy-quota-track', x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+        const level = remaining <= 15 ? 'critical' : remaining <= 40 ? 'warning' : 'good';
+        const fill = new St.Widget({
+            style_class: `cliproxy-quota-fill cliproxy-quota-${level}`,
+            x_align: Clutter.ActorAlign.START,
+            y_expand: true,
+            width: Math.round(remaining * 1.6),
+        });
+        track.add_child(fill);
+        row.add_child(track);
+        box.add_child(row);
+
+        const reset = formatReset(window.reset_at);
+        if (reset)
+            box.add_child(new St.Label({text: `Reset ${reset}`, style_class: 'cliproxy-quota-reset'}));
+        return box;
     }
 
     _infoItem(text) {
