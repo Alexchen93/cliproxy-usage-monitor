@@ -130,22 +130,44 @@ class UsageIndicator extends PanelMenu.Button {
 
     _addProvider(provider) {
         this.menu.addMenuItem(this._infoItem(provider.name));
+        if (provider.accounts.length > 0) {
+            for (const account of provider.accounts)
+                this._addAccount(account);
+        } else {
+            this._addWindows(provider.windows, '  ');
+            if (provider.usedPercent !== null && Object.keys(provider.windows).length === 0)
+                this.menu.addMenuItem(this._infoItem(`  Used  ${formatPercent(provider.usedPercent)}`));
+        }
+        if (provider.accountsTotal !== null) {
+            const available = provider.accountsAvailable === null ? 'unknown' : provider.accountsAvailable;
+            this.menu.addMenuItem(this._infoItem(`  Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
+        }
+    }
+
+    _addAccount(account) {
+        const name = typeof account?.display_name === 'string' ? account.display_name : 'Account';
+        this.menu.addMenuItem(this._infoItem(`  ${name}`));
+        if (account?.available === false) {
+            this.menu.addMenuItem(this._infoItem('    Quota unavailable'));
+            return;
+        }
+        const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
+        this._addWindows(windows, '    ');
+        if (Object.keys(windows).length === 0)
+            this.menu.addMenuItem(this._infoItem(`    Used  ${formatPercent(account?.summary_used_percent)}`));
+    }
+
+    _addWindows(windows, indent) {
         const windowLabels = {five_hour: '5h', weekly: 'Weekly'};
         for (const [key, label] of Object.entries(windowLabels)) {
-            const window = provider.windows[key];
+            const window = windows[key];
             if (!window)
                 continue;
-            let text = `  ${label}  ${formatPercent(window.used_percent)} used`;
+            let text = `${indent}${label}  ${formatPercent(window.used_percent)} used`;
             const reset = formatReset(window.reset_at);
             if (reset)
                 text += ` · reset ${reset}`;
             this.menu.addMenuItem(this._infoItem(text));
-        }
-        if (provider.usedPercent !== null && Object.keys(provider.windows).length === 0)
-            this.menu.addMenuItem(this._infoItem(`  Used  ${formatPercent(provider.usedPercent)}`));
-        if (provider.accountsTotal !== null) {
-            const available = provider.accountsAvailable === null ? 'unknown' : provider.accountsAvailable;
-            this.menu.addMenuItem(this._infoItem(`  Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
         }
     }
 

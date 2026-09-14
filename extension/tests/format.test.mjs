@@ -21,6 +21,11 @@ test('handles partial data and cache fallbacks', () => {
     assert.equal(cacheState(null, true), 'offline');
 });
 
+test('preserves per-account provider quota records', () => {
+    const accounts = [{display_name: 'one@example.com', windows: {five_hour: {used_percent: 12}}}];
+    assert.deepEqual(providerSummary({providers: {codex: {accounts}}}, 'codex').accounts, accounts);
+});
+
 test('formats valid reset timestamps without throwing', () => {
     assert.match(formatReset(new Date(Date.now() + 61_000).toISOString()), /m$/);
     assert.equal(formatReset('invalid'), null);

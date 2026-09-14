@@ -49,6 +49,18 @@ def _account_id(entry: dict[str, Any]) -> str:
     return ""
 
 
+def _account_label(entry: dict[str, Any], position: int) -> str:
+    for key in ("email", "label", "name"):
+        value = entry.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:120]
+    return f"Account {position}"
+
+
+def _warning_level(values: list[int]) -> str:
+    return "critical" if any(value >= 95 for value in values) else "warning" if any(value >= 80 for value in values) else "normal"
+
+
 def collect(client: ManagementClient) -> tuple[dict[str, Any] | None, list[dict[str, str]], bool]:
     """Read metadata from /auth-files and live quota only through /api-call."""
     errors: list[dict[str, str]] = []
@@ -59,13 +71,22 @@ def collect(client: ManagementClient) -> tuple[dict[str, Any] | None, list[dict[
         # an individual management route failed. Network failures have no
         # status and therefore mark the proxy offline.
         return None, [{"provider": "codex", "message": safe_error(exc)}], exc.status is not None
-    windows_by_account: list[dict[str, Any]] = []
+    accounts: list[dict[str, Any]] = []
     available = 0
-    for entry in entries:
+    for position, entry in enumerate(entries, 1):
         auth_index = str(entry.get("auth_index", entry.get("authIndex", "")))
         account_id = _account_id(entry)
+        account: dict[str, Any] = {
+            "display_name": _account_label(entry, position),
+            "available": False,
+            "summary_used_percent": None,
+            "warning_level": "normal",
+            "windows": {},
+        }
         if not auth_index or not account_id:
             errors.append({"provider": "codex", "message": "account metadata missing auth_index or chatgpt_account_id"})
+            account["error"] = "Account metadata is incomplete"
+            accounts.append(account)
             continue
         try:
             response = client.api_call(auth_index, _WHAM_URL, {**_WHAM_HEADERS, "Chatgpt-Account-Id": account_id})
@@ -78,23 +99,35 @@ def collect(client: ManagementClient) -> tuple[dict[str, Any] | None, list[dict[
             parsed = parse_usage(body)
             if not parsed:
                 raise ManagementError("quota response had no usable rate-limit windows")
-            windows_by_account.append(parsed)
+            used = [window["used_percent"] for window in parsed.values()]
+            account.update({
+                "available": True,
+                "summary_used_percent": max(used) if used else None,
+                "warning_level": _warning_level(used),
+                "windows": parsed,
+            })
             available += 1
         except (ManagementError, ValueError, json.JSONDecodeError) as exc:
             errors.append({"provider": "codex", "message": safe_error(exc)})
+            account["error"] = safe_error(exc)
+            accounts.append(account)
             if isinstance(exc, ManagementError) and exc.status == 401:
                 break
+            continue
+        accounts.append(account)
     if not entries:
         return None, errors, True
     aggregate: dict[str, Any] = {}
     for name in ("five_hour", "weekly"):
-        candidates = [item[name] for item in windows_by_account if name in item]
+        candidates = [account["windows"][name] for account in accounts if name in account["windows"]]
         if candidates:
-            # The account pool answer is its highest used / lowest remaining member.
+            # The panel summary shows the pool's highest-used member, while the
+            # popup preserves every account's own windows below.
             aggregate[name] = max(candidates, key=lambda item: item["used_percent"])
     used = [item["used_percent"] for item in aggregate.values()]
     return {
         "display_name": "Codex", "summary_used_percent": max(used) if used else None,
-        "warning_level": "critical" if any(value >= 95 for value in used) else "warning" if any(value >= 80 for value in used) else "normal",
-        "estimated": False, "accounts_total": len(entries), "accounts_available": available, "windows": aggregate,
+        "warning_level": _warning_level(used),
+        "estimated": False, "accounts_total": len(entries), "accounts_available": available,
+        "accounts": accounts, "windows": aggregate,
     }, errors, True

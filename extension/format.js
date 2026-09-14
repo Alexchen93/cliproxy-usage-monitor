@@ -24,6 +24,7 @@ export function providerSummary(summary, providerKey) {
         accountsTotal: finiteInteger(provider.accounts_total),
         accountsAvailable: finiteInteger(provider.accounts_available),
         estimated: provider.estimated === true,
+        accounts: Array.isArray(provider.accounts) ? provider.accounts : [],
         windows: provider.windows && typeof provider.windows === 'object' ? provider.windows : {},
     };
 }

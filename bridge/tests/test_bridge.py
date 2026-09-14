@@ -49,6 +49,12 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(provider["summary_used_percent"], 58)
         self.assertEqual(provider["windows"]["five_hour"]["remaining_percent"], 42)
         self.assertEqual(provider["windows"]["weekly"]["used_percent"], 31)
+        self.assertEqual(len(provider["accounts"]), 2)
+        self.assertEqual(provider["accounts"][0]["display_name"], "Account 1")
+        self.assertEqual(provider["accounts"][0]["windows"]["five_hour"]["used_percent"], 42)
+        self.assertEqual(provider["accounts"][0]["windows"]["weekly"]["used_percent"], 31)
+        self.assertEqual(provider["accounts"][1]["windows"]["five_hour"]["used_percent"], 58)
+        self.assertEqual(provider["accounts"][1]["windows"]["weekly"]["used_percent"], 10)
         self.assertIn("five_hour", parse_usage(usage_a))
 
     def test_nested_id_token_account_and_token_substitution(self):
@@ -68,6 +74,10 @@ class BridgeTests(unittest.TestCase):
         provider, errors, online = collect(FakeClient(files, [{"status_code": 200, "body": payload}, {"status_code": 503, "body": {}}]))
         self.assertTrue(online)
         self.assertEqual(provider["accounts_available"], 1)
+        self.assertEqual(len(provider["accounts"]), 2)
+        self.assertTrue(provider["accounts"][0]["available"])
+        self.assertFalse(provider["accounts"][1]["available"])
+        self.assertIn("error", provider["accounts"][1])
         self.assertEqual(len(errors), 1)
 
     def test_cache_states(self):
