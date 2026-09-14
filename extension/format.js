@@ -34,9 +34,9 @@ export function formatPanelText(summary) {
     const antigravity = providerSummary(summary, 'antigravity');
 
     if (codex)
-        parts.push(`C ${formatPercent(codex.usedPercent)}`);
+        parts.push(`Codex ${formatPercent(codex.usedPercent)}`);
     if (antigravity)
-        parts.push(`AG ${formatPercent(antigravity.usedPercent)}`);
+        parts.push(`Antigravity ${formatPercent(antigravity.usedPercent)}`);
 
     return parts.length > 0 ? parts.join(' · ') : 'Usage —';
 }

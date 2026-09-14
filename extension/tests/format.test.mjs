@@ -9,8 +9,8 @@ test('clamps malformed percentages safely', () => {
 });
 
 test('formats Codex and Antigravity panel values only when present', () => {
-    assert.equal(formatPanelText({providers: {codex: {summary_used_percent: 42}}}), 'C 42%');
-    assert.equal(formatPanelText({providers: {antigravity: {summary_used_percent: 61}}}), 'AG 61%');
+    assert.equal(formatPanelText({providers: {codex: {summary_used_percent: 42}}}), 'Codex 42%');
+    assert.equal(formatPanelText({providers: {antigravity: {summary_used_percent: 61}}}), 'Antigravity 61%');
     assert.equal(formatPanelText({providers: {}}), 'Usage —');
 });
 
