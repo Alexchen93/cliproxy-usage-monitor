@@ -8,7 +8,8 @@ import {BridgeClient} from './client.js';
 export default class CLIProxyUsageMonitorPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         window.set_title('CLIProxy Usage Monitor Settings');
-        window.set_default_size(560, 420);
+        window.set_default_size(620, 480);
+        window.set_size_request(620, 480);
 
         const page = new Adw.PreferencesPage({title: 'CLIProxyAPI'});
         const sourceGroup = new Adw.PreferencesGroup({
