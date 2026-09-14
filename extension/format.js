@@ -3,6 +3,8 @@
  * a partial provider response cannot break the Shell UI.
  */
 export function clampPercent(value) {
+    if (value === null || value === undefined || value === '')
+        return null;
     const number = Number(value);
     return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : null;
 }
@@ -35,11 +37,16 @@ export function formatPanelText(summary) {
     const antigravity = providerSummary(summary, 'antigravity');
 
     if (codex)
-        parts.push(`Codex ${formatPercent(codex.usedPercent)}`);
+        parts.push(`Codex ${formatPercent(remainingPercent(codex.usedPercent))} left`);
     if (antigravity)
-        parts.push(`Antigravity ${formatPercent(antigravity.usedPercent)}`);
+        parts.push(`Antigravity ${formatPercent(remainingPercent(antigravity.usedPercent))} left`);
 
     return parts.length > 0 ? parts.join(' · ') : 'Usage —';
+}
+
+export function remainingPercent(usedPercent) {
+    const used = clampPercent(usedPercent);
+    return used === null ? null : 100 - used;
 }
 
 export function cacheState(summary, requestFailed = false) {

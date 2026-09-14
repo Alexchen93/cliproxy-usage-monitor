@@ -163,7 +163,7 @@ class UsageIndicator extends PanelMenu.Button {
             const window = windows[key];
             if (!window)
                 continue;
-            let text = `${indent}${label}  ${formatPercent(window.used_percent)} used`;
+            let text = `${indent}${label}  ${formatPercent(window.remaining_percent)} remaining`;
             const reset = formatReset(window.reset_at);
             if (reset)
                 text += ` · reset ${reset}`;

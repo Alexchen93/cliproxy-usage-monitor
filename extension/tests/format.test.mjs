@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cacheState, clampPercent, formatPanelText, formatReset, providerSummary} from '../format.js';
+import {cacheState, clampPercent, formatPanelText, formatReset, providerSummary, remainingPercent} from '../format.js';
 
 test('clamps malformed percentages safely', () => {
     assert.equal(clampPercent(-2), 0);
@@ -9,9 +9,15 @@ test('clamps malformed percentages safely', () => {
 });
 
 test('formats Codex and Antigravity panel values only when present', () => {
-    assert.equal(formatPanelText({providers: {codex: {summary_used_percent: 42}}}), 'Codex 42%');
-    assert.equal(formatPanelText({providers: {antigravity: {summary_used_percent: 61}}}), 'Antigravity 61%');
+    assert.equal(formatPanelText({providers: {codex: {summary_used_percent: 42}}}), 'Codex 58% left');
+    assert.equal(formatPanelText({providers: {antigravity: {summary_used_percent: 61}}}), 'Antigravity 39% left');
     assert.equal(formatPanelText({providers: {}}), 'Usage —');
+});
+
+test('converts used quota to remaining quota', () => {
+    assert.equal(remainingPercent(10), 90);
+    assert.equal(remainingPercent(100), 0);
+    assert.equal(remainingPercent(null), null);
 });
 
 test('handles partial data and cache fallbacks', () => {
