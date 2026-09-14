@@ -5,7 +5,7 @@ import {UsageIndicator} from './indicator.js';
 
 export default class CLIProxyUsageMonitorExtension extends Extension {
     enable() {
-        this._indicator = new UsageIndicator();
+        this._indicator = new UsageIndicator(this.uuid);
         Main.panel.addToStatusArea(this.uuid, this._indicator);
     }
 

@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -19,8 +20,9 @@ const STATE_ICONS = {
 
 export const UsageIndicator = GObject.registerClass(
 class UsageIndicator extends PanelMenu.Button {
-    _init() {
+    _init(extensionUuid) {
         super._init(0.0, 'CLIProxy Usage Monitor');
+        this._extensionUuid = extensionUuid;
         this._summary = null;
         this._requestFailed = false;
         this._destroyed = false;
@@ -126,6 +128,9 @@ class UsageIndicator extends PanelMenu.Button {
         const refresh = new PopupMenu.PopupMenuItem('Refresh');
         refresh.connect('activate', () => this._refreshNonBlocking());
         this.menu.addMenuItem(refresh);
+        const settings = new PopupMenu.PopupMenuItem('Settings…');
+        settings.connect('activate', () => this._openPreferences());
+        this.menu.addMenuItem(settings);
     }
 
     _addProvider(provider) {
@@ -207,6 +212,14 @@ class UsageIndicator extends PanelMenu.Button {
         if (reset)
             box.add_child(new St.Label({text: `Reset ${reset}`, style_class: 'cliproxy-quota-reset'}));
         return box;
+    }
+
+    _openPreferences() {
+        try {
+            Gio.Subprocess.new(['gnome-extensions', 'prefs', this._extensionUuid], Gio.SubprocessFlags.NONE);
+        } catch (_error) {
+            // The popup remains usable even if GNOME's preferences launcher is unavailable.
+        }
     }
 
     _infoItem(text) {

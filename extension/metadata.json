@@ -3,5 +3,5 @@
   "name": "CLIProxy Usage Monitor",
   "description": "Shows cached CLIProxy usage from a localhost bridge.",
   "shell-version": ["45", "46", "47"],
-  "url": "https://github.com/priveate/cliproxy-usage-monitor"
+  "url": "https://github.com/Alexchen93/cliproxy-usage-monitor"
 }

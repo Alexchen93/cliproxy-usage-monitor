@@ -20,6 +20,14 @@ export class BridgeClient {
         return this._request('POST', '/api/v1/refresh');
     }
 
+    async getSettings() {
+        return this._request('GET', '/api/v1/settings');
+    }
+
+    async updateSettings(settings) {
+        return this._request('POST', '/api/v1/settings', settings);
+    }
+
     cancel() {
         this._cancellable?.cancel();
         this._cancellable = null;
@@ -31,7 +39,7 @@ export class BridgeClient {
         this._session.abort();
     }
 
-    async _request(method, path) {
+    async _request(method, path, data = null) {
         if (this._destroyed)
             throw new Error('Bridge client is destroyed');
 
@@ -41,8 +49,10 @@ export class BridgeClient {
         const cancellable = new Gio.Cancellable();
         this._cancellable = cancellable;
         const message = Soup.Message.new(method, `${BASE_URL}${path}`);
-        if (method === 'POST')
-            message.request_headers.append('Content-Type', 'application/json');
+        if (data !== null) {
+            const body = GLib.Bytes.new(new TextEncoder().encode(JSON.stringify(data)));
+            message.set_request_body_from_bytes('application/json', body);
+        }
 
         try {
             const bytes = await new Promise((resolve, reject) => {

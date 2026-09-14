@@ -13,7 +13,7 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectHome=read-only
 ProtectSystem=strict
-ReadWritePaths=%h/.local/share/cliproxy-usage-bridge
+ReadWritePaths=%h/.config/cliproxy-usage-bridge %h/.local/share/cliproxy-usage-bridge
 
 [Install]
 WantedBy=default.target

@@ -21,6 +21,7 @@ The GNOME extension never receives the CLIProxyAPI management key. The bridge re
 - Cached/stale/offline state
 - Manual refresh with debounce
 - Partial failure handling
+- A local Settings window for the CLIProxyAPI private URL and one-way Management Key replacement
 
 Antigravity, notifications, and historical usage collection are later phases.
 
@@ -44,3 +45,9 @@ gnome-extensions pack extension --force --out-dir=/tmp
 - Extension: `~/.local/share/gnome-shell/extensions/cliproxy-usage-monitor-v4@priveate.uk`
 
 The bridge config uses the private endpoint `http://100.64.0.3:8317`. Never commit a real management key.
+
+## Settings and secret handling
+
+Open the monitor popup and choose **Settings…** to edit the private CLIProxyAPI URL. The bridge accepts only literal private, loopback, link-local, or Headscale CGNAT addresses; it refuses public endpoints and never exposes its Management Key through its local API.
+
+For first-time setup or key rotation, enter a Management Key in the Settings window and save. The field is always blank when the window opens. The bridge atomically writes it only to `~/.config/cliproxy-usage-bridge/config.toml` with mode `0600`; blank means keep the existing key.
