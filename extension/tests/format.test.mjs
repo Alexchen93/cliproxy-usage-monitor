@@ -27,6 +27,12 @@ test('sizes quota fills from the actual track allocation', () => {
     assert.equal(quotaFillWidth(213, null), 0);
 });
 
+test('keeps a half quota at half of a fractional monitor allocation', () => {
+    assert.equal(quotaFillWidth(213.6, 100), 214);
+    assert.equal(quotaFillWidth(213.6, 50), 107);
+    assert.equal(quotaFillWidth(213.6, 0), 0);
+});
+
 test('handles partial data and cache fallbacks', () => {
     assert.equal(providerSummary({providers: {codex: null}}, 'codex'), null);
     assert.equal(cacheState({cache_state: 'cached'}), 'cached');

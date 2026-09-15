@@ -196,21 +196,36 @@ class UsageIndicator extends PanelMenu.Button {
         row.add_child(new St.Label({text: label, style_class: 'cliproxy-quota-label'}));
         row.add_child(new St.Label({text: `${Math.round(remaining)}%`, style_class: 'cliproxy-quota-percent'}));
 
-        const track = new St.Widget({style_class: 'cliproxy-quota-track', x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+        // A BinLayout keeps the background track and fill in the same allocation
+        // coordinate space. Without it, the fill can be measured against its own
+        // preferred size after the popup moves to a differently scaled monitor.
+        const track = new St.Widget({
+            style_class: 'cliproxy-quota-track',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            layout_manager: new Clutter.BinLayout(),
+            clip_to_allocation: true,
+        });
         const level = remaining <= 15 ? 'critical' : remaining <= 40 ? 'warning' : 'good';
         const fill = new St.Widget({
             style_class: `cliproxy-quota-fill cliproxy-quota-${level}`,
             x_align: Clutter.ActorAlign.START,
+            x_expand: false,
             y_expand: true,
             width: 0,
         });
         const updateFillWidth = () => {
-            // CSS/theme layout can allocate a track wider than its nominal width.
-            // Measure the actual allocation so 50% and 100% always render proportionally.
-            fill.width = quotaFillWidth(track.width, remaining);
+            // Read the painted allocation rather than the CSS/preferred width.
+            // A popup is reallocated when shown on a monitor with different scale
+            // or layout constraints, so update on allocation, mapping, and style.
+            const allocation = track.get_allocation_box();
+            const allocationWidth = Math.max(0, allocation.x2 - allocation.x1);
+            fill.width = quotaFillWidth(allocationWidth, remaining);
         };
         track.connect('notify::allocation', updateFillWidth);
         track.connect('notify::width', updateFillWidth);
+        track.connect('notify::mapped', updateFillWidth);
+        track.connect('style-changed', updateFillWidth);
         track.add_child(fill);
         GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             updateFillWidth();
