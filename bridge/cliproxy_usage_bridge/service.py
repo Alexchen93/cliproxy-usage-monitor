@@ -31,9 +31,18 @@ class SummaryService:
         self._refresh_started = 0.0
         self._refresh_in_progress = False
         self._generation = 0
+        self._periodic_refresh_stop = threading.Event()
         if start_refresh:
             with self._lock:
                 self._start_refresh_locked()
+            # The bridge can start before the Tailnet route is usable. Keep
+            # retrying independently of the GNOME popup so boot-time failures
+            # recover automatically once the private network is ready.
+            threading.Thread(
+                target=self._periodic_refresh,
+                daemon=True,
+                name="quota-refresh-scheduler",
+            ).start()
 
     def settings(self) -> dict[str, object]:
         """Return the exact nonsecret settings contract for the local UI."""
@@ -90,6 +99,10 @@ class SummaryService:
                 return False
             self._start_refresh_locked()
             return True
+
+    def _periodic_refresh(self) -> None:
+        while not self._periodic_refresh_stop.wait(self.config.cache_ttl_seconds):
+            self.request_refresh()
 
     def _start_refresh_locked(self) -> None:
         if self._refresh_in_progress:
