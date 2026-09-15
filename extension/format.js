@@ -49,6 +49,14 @@ export function remainingPercent(usedPercent) {
     return used === null ? null : 100 - used;
 }
 
+export function quotaFillWidth(trackWidth, remainingPercent) {
+    const track = Number(trackWidth);
+    const remaining = clampPercent(remainingPercent);
+    if (!Number.isFinite(track) || track <= 0 || remaining === null)
+        return 0;
+    return Math.round(track * remaining / 100);
+}
+
 export function cacheState(summary, requestFailed = false) {
     if (requestFailed)
         return summary ? 'stale' : 'offline';

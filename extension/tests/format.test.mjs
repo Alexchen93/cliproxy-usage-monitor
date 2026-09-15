@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cacheState, clampPercent, formatPanelText, formatReset, providerSummary, remainingPercent} from '../format.js';
+import {cacheState, clampPercent, formatPanelText, formatReset, providerSummary, quotaFillWidth, remainingPercent} from '../format.js';
 
 test('clamps malformed percentages safely', () => {
     assert.equal(clampPercent(-2), 0);
@@ -18,6 +18,13 @@ test('converts used quota to remaining quota', () => {
     assert.equal(remainingPercent(10), 90);
     assert.equal(remainingPercent(100), 0);
     assert.equal(remainingPercent(null), null);
+});
+
+test('sizes quota fills from the actual track allocation', () => {
+    assert.equal(quotaFillWidth(213, 100), 213);
+    assert.equal(quotaFillWidth(213, 50), 107);
+    assert.equal(quotaFillWidth(213, 0), 0);
+    assert.equal(quotaFillWidth(213, null), 0);
 });
 
 test('handles partial data and cache fallbacks', () => {

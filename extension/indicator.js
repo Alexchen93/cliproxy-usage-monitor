@@ -7,7 +7,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {BridgeClient} from './client.js';
-import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, providerSummary} from './format.js';
+import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, providerSummary, quotaFillWidth} from './format.js';
 
 const POLL_SECONDS = 30;
 const POPUP_REFRESH_AGE_SECONDS = 20;
@@ -202,9 +202,20 @@ class UsageIndicator extends PanelMenu.Button {
             style_class: `cliproxy-quota-fill cliproxy-quota-${level}`,
             x_align: Clutter.ActorAlign.START,
             y_expand: true,
-            width: Math.round(remaining * 1.6),
+            width: 0,
         });
+        const updateFillWidth = () => {
+            // CSS/theme layout can allocate a track wider than its nominal width.
+            // Measure the actual allocation so 50% and 100% always render proportionally.
+            fill.width = quotaFillWidth(track.width, remaining);
+        };
+        track.connect('notify::allocation', updateFillWidth);
+        track.connect('notify::width', updateFillWidth);
         track.add_child(fill);
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            updateFillWidth();
+            return GLib.SOURCE_REMOVE;
+        });
         row.add_child(track);
         box.add_child(row);
 
