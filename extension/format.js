@@ -57,43 +57,6 @@ export function quotaFillWidth(trackWidth, remainingPercent) {
     return Math.round(track * remaining / 100);
 }
 
-/**
- * Groups model quota buckets by the vendor/family name shown to the user.
- * The bridge does not expose a formal family field, so prefer a display label,
- * ignore optional vendor prefixes, then fall back to the model id. This keeps
- * unknown future model providers usable without a hard-coded Gemini-only list.
- */
-export function modelSourceGroups(windows) {
-    if (!windows || typeof windows !== 'object')
-        return [];
-
-    const groups = new Map();
-    for (const [modelId, window] of Object.entries(windows)) {
-        if (!window || typeof window !== 'object')
-            continue;
-        const source = modelSourceName(window.label, modelId);
-        const key = source.toLocaleLowerCase();
-        if (!groups.has(key))
-            groups.set(key, {name: source, windows: {}});
-        groups.get(key).windows[modelId] = window;
-    }
-
-    return [...groups.values()].sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function modelSourceName(label, modelId) {
-    const candidate = typeof label === 'string' && label.trim() ? label : String(modelId || 'Other');
-    const parts = candidate.match(/[A-Za-z][A-Za-z0-9]*/g) || [];
-    const vendorPrefixes = new Set(['google', 'anthropic', 'openai', 'meta', 'microsoft', 'xai']);
-    const source = parts.find(part => !vendorPrefixes.has(part.toLocaleLowerCase()));
-    if (!source)
-        return 'Other';
-    const lower = source.toLocaleLowerCase();
-    if (lower === 'gpt')
-        return 'GPT';
-    return source.charAt(0).toLocaleUpperCase() + source.slice(1);
-}
-
 export function cacheState(summary, requestFailed = false) {
     if (requestFailed)
         return summary ? 'stale' : 'offline';
