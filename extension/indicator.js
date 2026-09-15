@@ -7,7 +7,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {BridgeClient} from './client.js';
-import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, providerSummary, quotaFillWidth} from './format.js';
+import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, modelSourceGroups, providerSummary, quotaFillWidth} from './format.js';
 
 const POLL_SECONDS = 30;
 const POPUP_REFRESH_AGE_SECONDS = 20;
@@ -134,25 +134,43 @@ class UsageIndicator extends PanelMenu.Button {
     }
 
     _addProvider(provider) {
-        this.menu.addMenuItem(this._infoItem(provider.name));
+        // Providers are first-level menus so a noisy source can be hidden while
+        // keeping its summary and account availability visible in the label.
+        const availability = provider.accountsTotal === null
+            ? ''
+            : ` · ${provider.accountsAvailable === null ? '?' : provider.accountsAvailable}/${provider.accountsTotal}`;
+        const remaining = provider.usedPercent === null ? '' : ` · ${formatPercent(100 - provider.usedPercent)} left`;
+        const providerItem = new PopupMenu.PopupSubMenuMenuItem(`${provider.name}${remaining}${availability}`);
+        const menu = providerItem.menu;
+        const isModelProvider = provider.key === 'antigravity';
+
+        if (isModelProvider && Object.keys(provider.windows).length > 0) {
+            menu.addMenuItem(this._infoItem('Model quota groups'));
+            this._addModelGroupsToMenu(provider.windows, menu);
+            if (provider.accounts.length > 0)
+                menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        }
+
         if (provider.accounts.length > 0) {
             provider.accounts.forEach((account, index) => {
                 if (index > 0)
-                    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-                this._addAccount(account, index + 1);
+                    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                this._addAccount(account, index + 1, menu, isModelProvider);
             });
-        } else {
-            this._addWindows(provider.windows);
+        } else if (!isModelProvider) {
+            this._addWindowsToMenu(provider.windows, menu);
             if (provider.usedPercent !== null && Object.keys(provider.windows).length === 0)
-                this.menu.addMenuItem(this._infoItem(`Used  ${formatPercent(provider.usedPercent)}`));
+                menu.addMenuItem(this._infoItem(`Used  ${formatPercent(provider.usedPercent)}`));
         }
+
         if (provider.accountsTotal !== null) {
             const available = provider.accountsAvailable === null ? 'unknown' : provider.accountsAvailable;
-            this.menu.addMenuItem(this._infoItem(`Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
+            menu.addMenuItem(this._infoItem(`Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
         }
+        this.menu.addMenuItem(providerItem);
     }
 
-    _addAccount(account, index) {
+    _addAccount(account, index, menu, isModelProvider = false) {
         const name = typeof account?.display_name === 'string' ? account.display_name : `Account ${index}`;
         const card = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
         card.add_style_class_name('cliproxy-account-card');
@@ -164,28 +182,75 @@ class UsageIndicator extends PanelMenu.Button {
             content.add_child(new St.Label({text: 'Quota unavailable', style_class: 'cliproxy-account-unavailable'}));
         } else {
             const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
-            this._addWindows(windows, content);
+            if (isModelProvider)
+                this._addModelGroups(windows, content);
+            else
+                this._addWindows(windows, content);
             if (Object.keys(windows).length === 0)
                 content.add_child(new St.Label({text: `Used  ${formatPercent(account?.summary_used_percent)}`, style_class: 'cliproxy-account-unavailable'}));
         }
         card.add_child(content);
-        this.menu.addMenuItem(card);
+        menu.addMenuItem(card);
     }
 
-    _addWindows(windows, container = null) {
+    _addModelGroupsToMenu(windows, menu) {
+        const card = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        card.add_style_class_name('cliproxy-account-card');
+        const content = new St.BoxLayout({vertical: true, x_expand: true});
+        this._addModelGroups(windows, content);
+        card.add_child(content);
+        menu.addMenuItem(card);
+    }
+
+    _addModelGroups(windows, container) {
+        const groups = modelSourceGroups(windows);
+        if (groups.length === 0) {
+            container.add_child(new St.Label({text: 'No model quotas reported', style_class: 'cliproxy-account-unavailable'}));
+            return;
+        }
+
+        for (const group of groups) {
+            let expanded = false;
+            const section = new St.BoxLayout({vertical: true, x_expand: true});
+            const toggle = new St.Button({style_class: 'cliproxy-model-group-toggle', can_focus: true, x_expand: true});
+            const header = new St.BoxLayout({x_expand: true});
+            const arrow = new St.Icon({icon_name: 'pan-end-symbolic', style_class: 'popup-menu-arrow'});
+            const count = Object.keys(group.windows).length;
+            header.add_child(new St.Label({text: `${group.name} · ${count} model${count === 1 ? '' : 's'}`, x_expand: true}));
+            header.add_child(arrow);
+            toggle.set_child(header);
+
+            const details = new St.BoxLayout({vertical: true, x_expand: true, visible: false});
+            this._addWindows(group.windows, details);
+            toggle.connect('clicked', () => {
+                expanded = !expanded;
+                details.visible = expanded;
+                arrow.icon_name = expanded ? 'pan-down-symbolic' : 'pan-end-symbolic';
+            });
+            section.add_child(toggle);
+            section.add_child(details);
+            container.add_child(section);
+        }
+    }
+
+    _addWindowsToMenu(windows, menu) {
+        for (const [key, window] of Object.entries(windows)) {
+            if (!window)
+                continue;
+            const label = typeof window.label === 'string' ? window.label : key;
+            const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+            item.add_child(this._quotaRow(label, window));
+            menu.addMenuItem(item);
+        }
+    }
+
+    _addWindows(windows, container) {
         const windowLabels = {five_hour: '5h', weekly: 'Weekly'};
         for (const [key, window] of Object.entries(windows)) {
             if (!window)
                 continue;
             const label = typeof window.label === 'string' ? window.label : (windowLabels[key] || key);
-            const row = this._quotaRow(label, window);
-            if (container)
-                container.add_child(row);
-            else {
-                const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-                item.add_child(row);
-                this.menu.addMenuItem(item);
-            }
+            container.add_child(this._quotaRow(label, window));
         }
     }
 

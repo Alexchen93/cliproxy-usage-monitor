@@ -59,3 +59,14 @@
   color: rgba(255, 255, 255, 0.65);
   font-size: 0.9em;
 }
+
+.cliproxy-model-group-toggle {
+  padding: 6px 8px;
+  border-radius: 5px;
+  margin: 2px 0;
+}
+
+.cliproxy-model-group-toggle:hover,
+.cliproxy-model-group-toggle:focus {
+  background-color: rgba(255, 255, 255, 0.1);
+}
