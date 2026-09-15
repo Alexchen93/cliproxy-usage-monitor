@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cacheState, clampPercent, formatPanelText, formatReset, providerSummary, quotaFillWidth, remainingPercent} from '../format.js';
+import {cacheState, clampPercent, formatPanelText, formatReset, modelSourceGroups, providerSummary, quotaFillWidth, remainingPercent} from '../format.js';
 
 test('clamps malformed percentages safely', () => {
     assert.equal(clampPercent(-2), 0);
@@ -48,4 +48,22 @@ test('preserves per-account provider quota records', () => {
 test('formats valid reset timestamps without throwing', () => {
     assert.match(formatReset(new Date(Date.now() + 61_000).toISOString()), /m$/);
     assert.equal(formatReset('invalid'), null);
+});
+
+
+test('groups model quotas by displayed source with model-id fallback', () => {
+    const groups = modelSourceGroups({
+        'gemini-2.5-pro': {label: 'Gemini 2.5 Pro'},
+        'gemini-2.5-flash': {label: 'Google Gemini 2.5 Flash'},
+        'claude-sonnet': {label: 'Claude Sonnet'},
+        'gpt-5': {label: 'GPT-5'},
+        'mystery-model': {},
+    });
+    assert.deepEqual(groups.map(group => group.name), ['Claude', 'Gemini', 'GPT', 'Mystery']);
+    assert.deepEqual(Object.keys(groups.find(group => group.name === 'Gemini').windows), ['gemini-2.5-pro', 'gemini-2.5-flash']);
+});
+
+test('ignores incomplete model records while grouping', () => {
+    assert.deepEqual(modelSourceGroups(null), []);
+    assert.deepEqual(modelSourceGroups({missing: null}), []);
 });
