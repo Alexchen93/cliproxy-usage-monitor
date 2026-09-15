@@ -7,7 +7,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {BridgeClient} from './client.js';
-import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, modelSourceGroups, providerSummary, quotaFillWidth} from './format.js';
+import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, providerSummary, quotaFillWidth} from './format.js';
 
 const POLL_SECONDS = 30;
 const POPUP_REFRESH_AGE_SECONDS = 20;
@@ -134,72 +134,58 @@ class UsageIndicator extends PanelMenu.Button {
     }
 
     _addProvider(provider) {
-        // Use GNOME Shell's native submenu actors only. This keeps each menu
-        // level responsible for allocation and prevents the quota rows from
-        // being centred or clipped inside custom interactive card actors.
-        const left = provider.usedPercent === null ? '' : ` · ${formatPercent(100 - provider.usedPercent)} left`;
-        const counts = provider.accountsTotal === null
-            ? ''
-            : ` · ${provider.accountsAvailable === null ? '?' : provider.accountsAvailable}/${provider.accountsTotal}`;
-        const providerItem = new PopupMenu.PopupSubMenuMenuItem(`${provider.name}${left}${counts}`);
-        const menu = providerItem.menu;
-
-        if (provider.key === 'antigravity' && Object.keys(provider.windows).length > 0) {
-            this._addModelGroupsToMenu(provider.windows, menu);
-        } else if (provider.accounts.length > 0) {
-            provider.accounts.forEach((account, index) => this._addAccount(account, index + 1, menu));
+        this.menu.addMenuItem(this._infoItem(provider.name));
+        if (provider.accounts.length > 0) {
+            provider.accounts.forEach((account, index) => {
+                if (index > 0)
+                    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                this._addAccount(account, index + 1);
+            });
         } else {
-            this._addWindowsToMenu(provider.windows, menu);
+            this._addWindows(provider.windows);
             if (provider.usedPercent !== null && Object.keys(provider.windows).length === 0)
-                menu.addMenuItem(this._infoItem(`Used  ${formatPercent(provider.usedPercent)}`));
+                this.menu.addMenuItem(this._infoItem(`Used  ${formatPercent(provider.usedPercent)}`));
         }
-
         if (provider.accountsTotal !== null) {
             const available = provider.accountsAvailable === null ? 'unknown' : provider.accountsAvailable;
-            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            menu.addMenuItem(this._infoItem(`Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
+            this.menu.addMenuItem(this._infoItem(`Accounts  ${available}/${provider.accountsTotal} available${provider.estimated ? ' · estimated' : ''}`));
         }
-        this.menu.addMenuItem(providerItem);
     }
 
-    _addAccount(account, index, parentMenu) {
+    _addAccount(account, index) {
         const name = typeof account?.display_name === 'string' ? account.display_name : `Account ${index}`;
-        const used = formatPercent(account?.summary_used_percent);
-        const item = new PopupMenu.PopupSubMenuMenuItem(`Account ${index} · ${name} · ${used} used`);
+        const card = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+        card.add_style_class_name('cliproxy-account-card');
+        const content = new St.BoxLayout({vertical: true, x_expand: true});
+        const heading = new St.Label({text: `Account ${index} · ${name}`, style_class: 'cliproxy-account-heading'});
+        content.add_child(heading);
+
         if (account?.available === false) {
-            item.menu.addMenuItem(this._infoItem('Quota unavailable'));
+            content.add_child(new St.Label({text: 'Quota unavailable', style_class: 'cliproxy-account-unavailable'}));
         } else {
             const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
-            this._addWindowsToMenu(windows, item.menu);
+            this._addWindows(windows, content);
             if (Object.keys(windows).length === 0)
-                item.menu.addMenuItem(this._infoItem(`Used  ${used}`));
+                content.add_child(new St.Label({text: `Used  ${formatPercent(account?.summary_used_percent)}`, style_class: 'cliproxy-account-unavailable'}));
         }
-        parentMenu.addMenuItem(item);
+        card.add_child(content);
+        this.menu.addMenuItem(card);
     }
 
-    _addModelGroupsToMenu(windows, menu) {
-        const groups = modelSourceGroups(windows);
-        if (groups.length === 0) {
-            menu.addMenuItem(this._infoItem('No model quotas reported'));
-            return;
-        }
-        for (const group of groups) {
-            const count = Object.keys(group.windows).length;
-            const item = new PopupMenu.PopupSubMenuMenuItem(`${group.name} · ${count} model${count === 1 ? '' : 's'}`);
-            this._addWindowsToMenu(group.windows, item.menu);
-            menu.addMenuItem(item);
-        }
-    }
-
-    _addWindowsToMenu(windows, menu) {
+    _addWindows(windows, container = null) {
         const windowLabels = {five_hour: '5h', weekly: 'Weekly'};
         for (const [key, window] of Object.entries(windows)) {
             if (!window)
                 continue;
             const label = typeof window.label === 'string' ? window.label : (windowLabels[key] || key);
-            const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
-            item.add_child(this._quotaRow(label, window));
-            menu.addMenuItem(item);
+            const row = this._quotaRow(label, window);
+            if (container)
+                container.add_child(row);
+            else {
+                const item = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
+                item.add_child(row);
+                this.menu.addMenuItem(item);
+            }
         }
     }
 

@@ -57,40 +57,6 @@ export function quotaFillWidth(trackWidth, remainingPercent) {
     return Math.round(track * remaining / 100);
 }
 
-/**
- * Group model quota buckets by their displayed model family. A provider can add
- * new model names without changing the extension: labels are preferred, vendor
- * prefixes are skipped, and model ids are the fallback.
- */
-export function modelSourceGroups(windows) {
-    if (!windows || typeof windows !== 'object')
-        return [];
-
-    const groups = new Map();
-    for (const [modelId, window] of Object.entries(windows)) {
-        if (!window || typeof window !== 'object')
-            continue;
-        const source = modelSourceName(window.label, modelId);
-        const key = source.toLocaleLowerCase();
-        if (!groups.has(key))
-            groups.set(key, {name: source, windows: {}});
-        groups.get(key).windows[modelId] = window;
-    }
-    return [...groups.values()].sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function modelSourceName(label, modelId) {
-    const candidate = typeof label === 'string' && label.trim() ? label : String(modelId || 'Other');
-    const parts = candidate.match(/[A-Za-z][A-Za-z0-9]*/g) || [];
-    const vendorPrefixes = new Set(['google', 'anthropic', 'openai', 'meta', 'microsoft', 'xai']);
-    const source = parts.find(part => !vendorPrefixes.has(part.toLocaleLowerCase()));
-    if (!source)
-        return 'Other';
-    return source.toLocaleLowerCase() === 'gpt'
-        ? 'GPT'
-        : source.charAt(0).toLocaleUpperCase() + source.slice(1);
-}
-
 export function cacheState(summary, requestFailed = false) {
     if (requestFailed)
         return summary ? 'stale' : 'offline';
