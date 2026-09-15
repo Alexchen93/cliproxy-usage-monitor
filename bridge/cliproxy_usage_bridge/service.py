@@ -8,6 +8,7 @@ from typing import Any
 
 from .cliproxy_client import ManagementClient
 from .config import Config, rewrite_source_config
+from .providers.antigravity import collect as collect_antigravity
 from .providers.codex import collect as collect_codex
 from .redaction import safe_error
 
@@ -108,12 +109,18 @@ class SummaryService:
         client = client or self.client
         generation = self._generation if generation is None else generation
         started = time.monotonic()
-        try:
-            provider, errors, online = collect_codex(client)
-        except Exception as exc:  # Keep the daemon alive on malformed upstream data.
-            provider = None
-            errors = [{"provider": "codex", "message": safe_error(exc)}]
-            online = False
+        providers: dict[str, dict[str, Any]] = {}
+        errors: list[dict[str, str]] = []
+        online = False
+        for key, collector in (("codex", collect_codex), ("antigravity", collect_antigravity)):
+            try:
+                provider, provider_errors, provider_online = collector(client)
+                if provider:
+                    providers[key] = provider
+                errors.extend(provider_errors)
+                online = online or provider_online
+            except Exception as exc:  # Keep the daemon alive on malformed upstream data.
+                errors.append({"provider": key, "message": safe_error(exc)})
         latency = round((time.monotonic() - started) * 1000)
         now = time.monotonic()
 
@@ -121,14 +128,14 @@ class SummaryService:
             if generation != self._generation:
                 return
             old_providers = dict((self._summary or {}).get("providers", {}))
-            if provider:
-                old_providers["codex"] = provider
+            if providers:
+                old_providers.update(providers)
                 self._updated_monotonic = now
             has_data = bool(old_providers)
-            status = "ok" if provider and not errors else "partial" if has_data else "error"
+            status = "ok" if providers and not errors else "partial" if has_data else "error"
             updated_at = (
                 datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
-                if provider
+                if providers
                 else (self._summary or {}).get("updated_at")
             )
             self._summary = {
@@ -136,7 +143,7 @@ class SummaryService:
                 "status": status,
                 "updated_at": updated_at,
                 "data_age_seconds": 0,
-                "cache_state": "live" if provider else "stale",
+                "cache_state": "live" if providers else "stale",
                 "proxy": {
                     "online": online,
                     "latency_ms": latency,

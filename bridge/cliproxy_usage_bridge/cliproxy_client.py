@@ -48,8 +48,10 @@ class ManagementClient:
         files = payload.get("files", []) if isinstance(payload, dict) else []
         return [item for item in files if isinstance(item, dict)]
 
-    def api_call(self, auth_index: str, url: str, headers: dict[str, str]) -> dict[str, Any]:
-        payload = {"auth_index": auth_index, "method": "GET", "url": url, "header": headers}
+    def api_call(self, auth_index: str, url: str, headers: dict[str, str], data: str | None = None) -> dict[str, Any]:
+        payload = {"auth_index": auth_index, "method": "GET" if data is None else "POST", "url": url, "header": headers}
+        if data is not None:
+            payload["data"] = data
         response = self._request("/api-call", "POST", payload)
         if not isinstance(response, dict):
             raise ManagementError("invalid api-call response")

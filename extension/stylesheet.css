@@ -3,7 +3,7 @@
 }
 
 .cliproxy-account-card {
-  min-width: 360px;
+  min-width: 450px;
   padding: 8px 10px;
 }
 
@@ -22,7 +22,7 @@
 }
 
 .cliproxy-quota-label {
-  width: 48px;
+  width: 135px;
 }
 
 .cliproxy-quota-percent {
@@ -55,7 +55,7 @@
 }
 
 .cliproxy-quota-reset {
-  margin: 0 0 5px 98px;
+  margin: 0 0 5px 185px;
   color: rgba(255, 255, 255, 0.65);
   font-size: 0.9em;
 }

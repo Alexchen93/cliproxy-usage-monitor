@@ -174,10 +174,10 @@ class UsageIndicator extends PanelMenu.Button {
 
     _addWindows(windows, container = null) {
         const windowLabels = {five_hour: '5h', weekly: 'Weekly'};
-        for (const [key, label] of Object.entries(windowLabels)) {
-            const window = windows[key];
+        for (const [key, window] of Object.entries(windows)) {
             if (!window)
                 continue;
+            const label = typeof window.label === 'string' ? window.label : (windowLabels[key] || key);
             const row = this._quotaRow(label, window);
             if (container)
                 container.add_child(row);

@@ -16,6 +16,7 @@ from unittest.mock import Mock
 from cliproxy_usage_bridge.cliproxy_client import ManagementClient, ManagementError
 from cliproxy_usage_bridge.config import Config, load_config, rewrite_source_config
 from cliproxy_usage_bridge.models import summary_schema
+from cliproxy_usage_bridge.providers.antigravity import collect as collect_antigravity, parse_models
 from cliproxy_usage_bridge.providers.codex import collect, parse_usage
 from cliproxy_usage_bridge.redaction import redact, safe_error
 from cliproxy_usage_bridge.server import handler_for
@@ -69,6 +70,27 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(provider["accounts"][1]["windows"]["five_hour"]["used_percent"], 58)
         self.assertEqual(provider["accounts"][1]["windows"]["weekly"]["used_percent"], 10)
         self.assertIn("five_hour", parse_usage(usage_a))
+
+    def test_antigravity_model_quota_aggregation(self):
+        payload_a = {
+            "models": {
+                "gemini-flash": {"displayName": "Gemini Flash", "quotaInfo": {"remainingFraction": 0.72, "resetTime": "2026-09-22T11:21:56Z"}},
+                "claude": {"displayName": "Claude", "quotaInfo": {"remainingFraction": 0.40}},
+            }
+        }
+        payload_b = {"models": {"gemini-flash": {"displayName": "Gemini Flash", "quotaInfo": {"remainingFraction": 0.15}}}}
+        files = [{"provider": "antigravity", "auth_index": "one"}, {"provider": "antigravity", "auth_index": "two"}]
+        client = FakeClient(files, [{"status_code": 200, "body": payload_a}, {"status_code": 200, "body": json.dumps(payload_b)}])
+        provider, errors, online = collect_antigravity(client)
+        self.assertTrue(online)
+        self.assertEqual(errors, [])
+        self.assertEqual(provider["accounts_total"], 2)
+        self.assertEqual(provider["accounts_available"], 2)
+        self.assertEqual(provider["summary_used_percent"], 85)
+        self.assertEqual(provider["windows"]["gemini-flash"]["remaining_percent"], 15)
+        self.assertEqual(provider["accounts"][0]["windows"]["claude"]["remaining_percent"], 40)
+        self.assertEqual(client.calls[0][3], "{}")
+        self.assertIn("gemini-flash", parse_models(payload_a))
 
     def test_nested_id_token_account_and_token_substitution(self):
         usage = {"rate_limit": {"primary_window": {"used_percent": 12}}}
