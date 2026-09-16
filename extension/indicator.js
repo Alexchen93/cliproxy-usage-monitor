@@ -7,7 +7,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {BridgeClient} from './client.js';
-import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, providerSummary, quotaFillWidth} from './format.js';
+import {averageRemainingPercent, cacheState, formatAge, formatPanelText, formatPercent, formatReset, providerSummary, quotaFillWidth} from './format.js';
 
 const POLL_SECONDS = 30;
 const POPUP_REFRESH_AGE_SECONDS = 20;
@@ -168,7 +168,7 @@ class UsageIndicator extends PanelMenu.Button {
         } else {
             const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
             if (providerKey === 'antigravity')
-                this._addModelWindows(windows, content);
+                this._addModelAverage(windows, content);
             else
                 this._addWindows(windows, content);
             if (Object.keys(windows).length === 0)
@@ -195,18 +195,15 @@ class UsageIndicator extends PanelMenu.Button {
         }
     }
 
-    _addModelWindows(windows, container) {
-        const entries = Object.entries(windows).filter(([, window]) => window && typeof window === 'object');
-        const constrained = Object.fromEntries(entries.filter(([, window]) => { const remaining = Number(window.remaining_percent); return !Number.isFinite(remaining) || remaining < 100; }));
-        this._addWindows(constrained, container);
-
-        const hiddenCount = entries.length - Object.keys(constrained).length;
-        if (hiddenCount > 0) {
-            const message = hiddenCount === entries.length
-                ? `All ${hiddenCount} model quotas are 100% available`
-                : `${hiddenCount} fully available models hidden`;
-            container.add_child(new St.Label({text: message, style_class: 'cliproxy-model-summary'}));
+    _addModelAverage(windows, container) {
+        const average = averageRemainingPercent(windows);
+        if (average === null) {
+            container.add_child(new St.Label({text: 'Model quota data unavailable', style_class: 'cliproxy-account-unavailable'}));
+            return;
         }
+        // One representative row avoids a long list while making the account's
+        // overall Antigravity availability visible at a glance.
+        container.add_child(this._quotaRow('All models average', {remaining_percent: average}));
     }
 
     _quotaRow(label, window) {

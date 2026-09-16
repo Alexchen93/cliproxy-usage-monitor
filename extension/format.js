@@ -57,6 +57,18 @@ export function quotaFillWidth(trackWidth, remainingPercent) {
     return Math.round(track * remaining / 100);
 }
 
+/** Returns the arithmetic mean remaining quota for complete model quota records. */
+export function averageRemainingPercent(windows) {
+    if (!windows || typeof windows !== 'object')
+        return null;
+    const values = Object.values(windows)
+        .map(window => clampPercent(window?.remaining_percent))
+        .filter(value => value !== null);
+    if (values.length === 0)
+        return null;
+    return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
 export function cacheState(summary, requestFailed = false) {
     if (requestFailed)
         return summary ? 'stale' : 'offline';

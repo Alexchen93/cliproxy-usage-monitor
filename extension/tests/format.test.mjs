@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cacheState, clampPercent, formatPanelText, formatReset, providerSummary, quotaFillWidth, remainingPercent} from '../format.js';
+import {averageRemainingPercent, cacheState, clampPercent, formatPanelText, formatReset, providerSummary, quotaFillWidth, remainingPercent} from '../format.js';
 
 test('clamps malformed percentages safely', () => {
     assert.equal(clampPercent(-2), 0);
@@ -56,4 +56,11 @@ test('uses one stable fixed track width for every quota window', () => {
     assert.equal(quotaFillWidth(160, 84), 134);
     assert.equal(quotaFillWidth(160, 44), 70);
     assert.equal(quotaFillWidth(160, 0), 0);
+});
+
+
+test('averages complete model remaining quotas and skips malformed values', () => {
+    assert.equal(averageRemainingPercent({one: {remaining_percent: 100}, two: {remaining_percent: 40}, broken: {remaining_percent: 'bad'}}), 70);
+    assert.equal(averageRemainingPercent({broken: {remaining_percent: null}}), null);
+    assert.equal(averageRemainingPercent(null), null);
 });
