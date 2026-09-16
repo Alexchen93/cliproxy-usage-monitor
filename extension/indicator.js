@@ -11,6 +11,9 @@ import {cacheState, formatAge, formatPanelText, formatPercent, formatReset, prov
 
 const POLL_SECONDS = 30;
 const POPUP_REFRESH_AGE_SECONDS = 20;
+// All quota rows use this one fixed logical width. It avoids per-row allocation
+// timing races when GNOME moves or reopens a popup across differently scaled displays.
+const QUOTA_TRACK_WIDTH = 160;
 const STATE_ICONS = {
     live: 'emblem-ok-symbolic',
     cached: 'emblem-synchronizing-symbolic',
@@ -139,7 +142,7 @@ class UsageIndicator extends PanelMenu.Button {
             provider.accounts.forEach((account, index) => {
                 if (index > 0)
                     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-                this._addAccount(account, index + 1);
+                this._addAccount(account, index + 1, provider.key);
             });
         } else {
             this._addWindows(provider.windows);
@@ -152,7 +155,7 @@ class UsageIndicator extends PanelMenu.Button {
         }
     }
 
-    _addAccount(account, index) {
+    _addAccount(account, index, providerKey = '') {
         const name = typeof account?.display_name === 'string' ? account.display_name : `Account ${index}`;
         const card = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
         card.add_style_class_name('cliproxy-account-card');
@@ -164,7 +167,10 @@ class UsageIndicator extends PanelMenu.Button {
             content.add_child(new St.Label({text: 'Quota unavailable', style_class: 'cliproxy-account-unavailable'}));
         } else {
             const windows = account?.windows && typeof account.windows === 'object' ? account.windows : {};
-            this._addWindows(windows, content);
+            if (providerKey === 'antigravity')
+                this._addModelWindows(windows, content);
+            else
+                this._addWindows(windows, content);
             if (Object.keys(windows).length === 0)
                 content.add_child(new St.Label({text: `Used  ${formatPercent(account?.summary_used_percent)}`, style_class: 'cliproxy-account-unavailable'}));
         }
@@ -189,6 +195,20 @@ class UsageIndicator extends PanelMenu.Button {
         }
     }
 
+    _addModelWindows(windows, container) {
+        const entries = Object.entries(windows).filter(([, window]) => window && typeof window === 'object');
+        const constrained = Object.fromEntries(entries.filter(([, window]) => { const remaining = Number(window.remaining_percent); return !Number.isFinite(remaining) || remaining < 100; }));
+        this._addWindows(constrained, container);
+
+        const hiddenCount = entries.length - Object.keys(constrained).length;
+        if (hiddenCount > 0) {
+            const message = hiddenCount === entries.length
+                ? `All ${hiddenCount} model quotas are 100% available`
+                : `${hiddenCount} fully available models hidden`;
+            container.add_child(new St.Label({text: message, style_class: 'cliproxy-model-summary'}));
+        }
+    }
+
     _quotaRow(label, window) {
         const remaining = Math.max(0, Math.min(100, Number(window.remaining_percent) || 0));
         const box = new St.BoxLayout({vertical: true, x_expand: true});
@@ -196,41 +216,23 @@ class UsageIndicator extends PanelMenu.Button {
         row.add_child(new St.Label({text: label, style_class: 'cliproxy-quota-label'}));
         row.add_child(new St.Label({text: `${Math.round(remaining)}%`, style_class: 'cliproxy-quota-percent'}));
 
-        // A BinLayout keeps the background track and fill in the same allocation
-        // coordinate space. Without it, the fill can be measured against its own
-        // preferred size after the popup moves to a differently scaled monitor.
+        const level = remaining <= 15 ? 'critical' : remaining <= 40 ? 'warning' : 'good';
         const track = new St.Widget({
             style_class: 'cliproxy-quota-track',
-            x_expand: true,
+            width: QUOTA_TRACK_WIDTH,
+            x_expand: false,
             y_align: Clutter.ActorAlign.CENTER,
             layout_manager: new Clutter.BinLayout(),
             clip_to_allocation: true,
         });
-        const level = remaining <= 15 ? 'critical' : remaining <= 40 ? 'warning' : 'good';
         const fill = new St.Widget({
             style_class: `cliproxy-quota-fill cliproxy-quota-${level}`,
             x_align: Clutter.ActorAlign.START,
             x_expand: false,
             y_expand: true,
-            width: 0,
+            width: quotaFillWidth(QUOTA_TRACK_WIDTH, remaining),
         });
-        const updateFillWidth = () => {
-            // Read the painted allocation rather than the CSS/preferred width.
-            // A popup is reallocated when shown on a monitor with different scale
-            // or layout constraints, so update on allocation, mapping, and style.
-            const allocation = track.get_allocation_box();
-            const allocationWidth = Math.max(0, allocation.x2 - allocation.x1);
-            fill.width = quotaFillWidth(allocationWidth, remaining);
-        };
-        track.connect('notify::allocation', updateFillWidth);
-        track.connect('notify::width', updateFillWidth);
-        track.connect('notify::mapped', updateFillWidth);
-        track.connect('style-changed', updateFillWidth);
         track.add_child(fill);
-        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-            updateFillWidth();
-            return GLib.SOURCE_REMOVE;
-        });
         row.add_child(track);
         box.add_child(row);
 

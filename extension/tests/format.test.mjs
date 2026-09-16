@@ -49,3 +49,11 @@ test('formats valid reset timestamps without throwing', () => {
     assert.match(formatReset(new Date(Date.now() + 61_000).toISOString()), /m$/);
     assert.equal(formatReset('invalid'), null);
 });
+
+
+test('uses one stable fixed track width for every quota window', () => {
+    assert.equal(quotaFillWidth(160, 100), 160);
+    assert.equal(quotaFillWidth(160, 84), 134);
+    assert.equal(quotaFillWidth(160, 44), 70);
+    assert.equal(quotaFillWidth(160, 0), 0);
+});
