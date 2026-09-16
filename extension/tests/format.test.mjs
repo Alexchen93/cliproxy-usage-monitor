@@ -8,9 +8,14 @@ test('clamps malformed percentages safely', () => {
     assert.equal(clampPercent('nope'), null);
 });
 
-test('formats Codex and Antigravity panel values only when present', () => {
+test('formats all Codex account 5h quotas and omits Antigravity from the panel', () => {
+    const accounts = [
+        {windows: {five_hour: {remaining_percent: 77}}},
+        {windows: {five_hour: {remaining_percent: 100}}},
+    ];
+    assert.equal(formatPanelText({providers: {codex: {accounts}, antigravity: {summary_used_percent: 61}}}), 'Codex 1 77% left · Codex 2 100% left');
     assert.equal(formatPanelText({providers: {codex: {summary_used_percent: 42}}}), 'Codex 58% left');
-    assert.equal(formatPanelText({providers: {antigravity: {summary_used_percent: 61}}}), 'Antigravity 39% left');
+    assert.equal(formatPanelText({providers: {antigravity: {summary_used_percent: 61}}}), 'Usage —');
     assert.equal(formatPanelText({providers: {}}), 'Usage —');
 });
 

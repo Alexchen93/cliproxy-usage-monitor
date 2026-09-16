@@ -32,16 +32,22 @@ export function providerSummary(summary, providerKey) {
 }
 
 export function formatPanelText(summary) {
-    const parts = [];
     const codex = providerSummary(summary, 'codex');
-    const antigravity = providerSummary(summary, 'antigravity');
+    if (!codex)
+        return 'Usage —';
 
-    if (codex)
-        parts.push(`Codex ${formatPercent(remainingPercent(codex.usedPercent))} left`);
-    if (antigravity)
-        parts.push(`Antigravity ${formatPercent(remainingPercent(antigravity.usedPercent))} left`);
+    // The provider summary can represent a weekly aggregate. The panel instead
+    // shows the short-horizon quota for every Codex account and leaves detailed
+    // Antigravity information for the popup.
+    if (codex.accounts.length > 0) {
+        return codex.accounts.map((account, index) => {
+            const remaining = clampPercent(account?.windows?.five_hour?.remaining_percent);
+            return `Codex ${index + 1} ${formatPercent(remaining)} left`;
+        }).join(' · ');
+    }
 
-    return parts.length > 0 ? parts.join(' · ') : 'Usage —';
+    // Preserve a useful fallback for partial bridge responses without accounts.
+    return `Codex ${formatPercent(remainingPercent(codex.usedPercent))} left`;
 }
 
 export function remainingPercent(usedPercent) {
