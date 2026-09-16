@@ -222,7 +222,7 @@ class UsageIndicator extends PanelMenu.Button {
             width: QUOTA_TRACK_WIDTH,
             x_expand: false,
             y_align: Clutter.ActorAlign.CENTER,
-            layout_manager: new Clutter.BinLayout(),
+            layout_manager: new Clutter.FixedLayout(),
             clip_to_allocation: true,
         });
         const fill = new St.Widget({
@@ -233,6 +233,7 @@ class UsageIndicator extends PanelMenu.Button {
             width: quotaFillWidth(QUOTA_TRACK_WIDTH, remaining),
         });
         track.add_child(fill);
+        fill.set_position(0, 0);
         row.add_child(track);
         box.add_child(row);
 
